@@ -1,0 +1,189 @@
+import ctypes
+import os
+import platform
+
+__all__ = [
+    'FGSTATUS_OK',
+    'ERROR_STATUS',
+
+    'kydll',
+
+    'load_kydll',
+
+    'DevNameStr',
+    'KYException',
+    'PropType',
+]
+
+ERROR_STATUS = {
+    0x2000: 'CSSTATUS_OK',
+    0x2001: 'CSSTATUS_UNKNOWN_SIM_HANDLE',
+    0x2002: 'CSSTATUS_HW_NOT_FOUND',
+    0x2003: 'CSSTATUS_BUSY',
+    0x2004: 'CSSTATUS_FILE_NOT_FOUND',
+    0x2005: 'CSSTATUS_FILE_READ_ERROR',
+    0x2006: 'CSSTATUS_CONFIG_NOT_LOADED',
+    0x2007: 'CSSTATUS_INVALID_VALUE',
+    0x2008: 'CSSTATUS_MAX_CONNECTIONS',
+    0x2009: 'CSSTATUS_COULD_NOT_STOP',
+    0x200A: 'CSSTATUS_CANNOT_LOAD_IMAGE_FILE',
+    0x200B: 'CSSTATUS_MEMORY_ERROR',
+    0x200C: 'CSSTATUS_UNKNOWN_SIM_CONTROL',
+    0x200D: 'CSSTATUS_WRONG_PARAMETER_NAME',
+    0x200E: 'CSSTATUS_WRONG_PARAMETER_TYPE',
+    0x200F: 'CSSTATUS_GENICAM_EXCEPTION',
+    0x2010: 'CSSTATUS_OUT_OF_RANGE_ADDRESS',
+    0x2011: 'CSSTATUS_PATH_INVALID',
+    0x2012: 'CSSTATUS_FILE_TYPE_INVALID',
+    0x2013: 'CSSTATUS_UNSUPPORTED_IMAGE',
+    0x2014: 'CSSTATUS_UNSUPPORTED_IMAGE_CONVERSION',
+    0x2015: 'CSSTATUS_UNSUPPORTED_DEPTH_CONVERSION',
+    0x2016: 'CSSTATUS_INVALID_VALUES_FILE',
+    0x2017: 'CSSTATUS_FILE_WRITE_ERROR',
+    0x2018: 'CSSTATUS_BUFFER_NOT_LOADED',
+    0x2019: 'CSSTATUS_TRIGGER_NOT_SET',
+    0x201A: 'CSSTATUS_CANNOT_SET_USER_REGISTER_ADDRESS',
+    0x201B: 'CSSTATUS_CANNOT_READ_USER_REGISTER',
+    0x201C: 'CSSTATUS_CANNOT_WRITE_USER_REGISTER',
+    0x201D: 'CSSTATUS_CANNOT_WRITE_REGISTER',
+    0x201E: 'CSSTATUS_IMAGE_HEADER_INJECTION_SIZE_TOO_BIG',
+    0x201F: 'CSSTATUS_NO_EXTENDED_HW_FEATURES',
+    0x2020: 'CSSTATUS_MAX_USER_ADDRESS_EXCEEDED',
+
+    0x3000: 'FGSTATUS_OK',
+    0x3001: 'FGSTATUS_UNKNOWN_HANDLE',
+    0x3002: 'FGSTATUS_HW_NOT_FOUND',
+    0x3003: 'FGSTATUS_BUSY',
+    0x3004: 'FGSTATUS_FILE_NOT_FOUND',
+    0x3005: 'FGSTATUS_FILE_READ_ERROR',
+    0x3006: 'FGSTATUS_CONFIG_NOT_LOADED',
+    0x3007: 'FGSTATUS_INVALID_VALUE',
+    0x3008: 'FGSTATUS_MAX_CONNECTIONS',
+    0x3009: 'FGSTATUS_MEMORY_ERROR',
+    0x300A: 'FGSTATUS_WRONG_PARAMETER_NAME',
+    0x300B: 'FGSTATUS_WRONG_PARAMETER_TYPE',
+    0x300C: 'FGSTATUS_GENICAM_EXCEPTION',
+    0x300D: 'FGSTATUS_OUT_OF_RANGE_ADDRESS',
+    0x300E: 'FGSTATUS_COULD_NOT_START',
+    0x300F: 'FGSTATUS_COULD_NOT_STOP',
+    0x3010: 'FGSTATUS_XML_FILE_NOT_LOADED',
+    0x3011: 'FGSTATUS_INVALID_VALUES_FILE',
+    0x3012: 'FGSTATUS_NO_REQUIRED_PARAMETERS_SECTION',
+    0x3013: 'FGSTATUS_WRONG_PARAMETERS_SECTION',
+    0x3014: 'FGSTATUS_VALUE_HAS_NO_SELECTOR',
+    0x3015: 'FGSTATUS_CALLBACK_NOT_ASSIGNED',
+    0x3016: 'FGSTATUS_HANDLE_DOES_NOT_MATCH_CONFIG',
+    0x3017: 'FGSTATUS_BUFFER_TOO_SMALL',
+    0x3018: 'FGSTATUS_BUFFER_UNSUPPORTED_SIZE',
+    0x3019: 'FGSTATUS_GRABBER_FIRMWARE_NOT_SUPPORTED',
+    0x301A: 'FGSTATUS_PARAMETER_NOT_WRITABLE',
+    0x301B: 'FGSTATUS_CANNOT_START_HW_STREAM',
+    0x301C: 'FGSTATUS_WRONG_SCHEMA_VERSION',
+    0x301D: 'FGSTATUS_CAMERA_OR_GRABBER_SECTION_NOT_ARRAY',
+    0x301E: 'FGSTATUS_ROOT_IS_NOT_OBJECT',
+    0x301F: 'FGSTATUS_NO_PARAMETER_TYPE',
+    0x3020: 'FGSTATUS_FILE_CREATE_ERROR',
+    0x3021: 'FGSTATUS_COULD_NOT_STOP_STREAM',
+    0x3022: 'FGSTATUS_BUFFER_MEMORY_OVERLAP',
+    0x3023: 'FGSTATUS_UNSUPPORTED_PARAMETER_TYPE',
+    0x3024: 'FGSTATUS_OPERATION_TIMEOUT',
+    0x3025: 'FGSTATUS_OPERATION_BLOCKED',
+    0x3026: 'FGSTATUS_PARAMETER_NOT_READABLE',
+    0x3027: 'FGSTATUS_PARAMETER_NO_CONTEXT',
+    0x3100: 'FGSTATUS_EXCEEDED_MAX_CAMERA_CONNECTIONS',
+    0x3101: 'FGSTATUS_QUEUED_BUFFERS_NOT_SUPPORTED',
+    0x3102: 'FGSTATUS_DESTINATION_QUEUE_NOT_SUPPORTED',
+    0x3103: 'FGSTATUS_INVALID_STREAM_INFO_CMD',
+    0x3104: 'FGSTATUS_INVALID_STREAM_BUFFER_INFO_CMD',
+    0x3105: 'FGSTATUS_STREAM_NOT_CREATED',
+    0x3106: 'FGSTATUS_GRABBER_NOT_CONNECTED',
+    0x3107: 'FGSTATUS_CAMERA_NOT_CONNECTED',
+    0x3108: 'FGSTATUS_GRABBER_NOT_OPENED',
+    0x3109: 'FGSTATUS_CAMERA_NOT_OPENED',
+    0x310A: 'FGSTATUS_BUFFER_ALREADY_IN_INPUT_QUEUE',
+    0x310B: 'FGSTATUS_STREAM_CANNOT_LOCK',
+    0x310C: 'FGSTATUS_STREAM_IS_LOCKED',
+    0x310E: 'FGSTATUS_FRAMESTART_NOT_SUPPORTED',
+    0x3200: 'FGSTATUS_CAMERA_NODES_NOT_INITIALIZED',
+    0x3201: 'FGSTATUS_FAILED_LOCKING_CAMERA_LINKS',
+    0x3202: 'FGSTATUS_FAILED_LOCKING_DEVICE',
+    0x3300: 'FGSTATUS_UPDATE_WRONG_VID',
+    0x3301: 'FGSTATUS_UPDATE_WRONG_BOARD_ID',
+    0x3400: 'FGSTATUS_CANNOT_WRITE_IMAGE',
+    0x3401: 'FGSTATUS_CANNOT_READ_IMAGE',
+    0x3500: 'FGSTATUS_LICENSE_NOT_VALID',
+    0x3501: 'FGSTATUS_LICENSE_ALREADY_STARTED_TRIAL',
+    0x3FFD: 'FGSTATUS_FACILITY_DISABLED',
+    0x3FFE: 'FGSTATUS_FEATURE_NOT_IMPLEMENTED',
+    0x3FFF: 'FGSTATUS_UNKNOWN_ERROR',
+
+    0x4001: 'INPUT_ARGUMENT_TYPE_ERROR',
+    0x4002: 'KYFGLIB_DLL_NOT_FOUND',
+    0x4003: 'KYPY_STATUS_INVALID_FGHANDLE',
+    0x4004: 'INVALID_INPUT_ARGUMENT',
+
+    0x80003601: 'FGSTATUS_SERVICE_NOTRUNNING',
+}
+FGSTATUS_OK = 0x3000
+DevNameStr = ctypes.c_char * 256  # noqa
+
+
+# @formatter:off
+class PropType:
+    UNKNOWN     = -1
+    INT         = 0x00
+    BOOL        = 0x01
+    STRING      = 0x02
+    FLOAT       = 0x03
+    ENUM        = 0x04
+    COMMAND     = 0x05
+    REGISTER    = 0x06
+# @formatter:on
+
+
+class KYException(Exception):
+    pass
+
+
+def load_kydll():
+    # Check if old API adapter should be utilized
+    os_env_value = os.environ.get('WithAdapter', '')
+    if not os_env_value:
+        vp2_use_vp1_api_adapter = False
+    else:
+        vp2_use_vp1_api_adapter = os_env_value.strip() == '1'
+
+    # Determine library name
+    kyfg_module_name = 'KYFGLibA' if vp2_use_vp1_api_adapter else 'KYFGLib'
+
+    # Determine platform-specific library extension
+    system = platform.system()
+    if system == 'Windows':
+        sn = 'BIN'
+        module_name = f'{kyfg_module_name}_vc141.dll'
+    elif system == 'Linux':
+        sn = 'LIB'
+        module_name = f'lib{kyfg_module_name}.so'
+    else:
+        raise RuntimeError(f'Unsupported platform: {system}')
+    target_path_ev = f'KAYA_VISION_POINT_2_{sn}_PATH' if vp2_use_vp1_api_adapter else f'KAYA_VISION_POINT_{sn}_PATH'
+    target_path = os.environ.get(target_path_ev, '')
+
+    # Get base path from KAYA_VISION_POINT_LIB_PATH
+    if not target_path:
+        raise RuntimeError(f'Environment variable {target_path_ev} is not set.')
+
+    # Construct full path to libray
+    full_module_path = os.path.join(target_path, module_name)
+    # Loading library
+    print(f'Loading library from: {full_module_path}')
+
+    if system == 'Linux':
+        # see https://linux.die.net/man/3/dlopen for environment variable LD_BIND_NOW
+        os.environ['LD_BIND_NOW'] = '1'
+    _kydll = ctypes.CDLL(full_module_path)
+    print(f'Library {module_name} loaded successfully')
+    return _kydll
+
+
+kydll = load_kydll()
