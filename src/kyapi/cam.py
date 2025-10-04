@@ -10,9 +10,9 @@ __all__ = [
     'connect_camera',
     'get_camera_handles',
     'get_cam_info',
-    'get_camera_prop',
+    'get_camera_feature',
     'open_camera',
-    'set_camera_prop',
+    'set_camera_feature',
     'start_acquisition',
     'stop_acquisition',
 ]
@@ -231,7 +231,7 @@ def kyfg_get_camera_value_register(cam_handle: int, param_name: str):
     return buffer_size.value, bytes(param_str)
 
 
-def get_camera_prop(cam_handle: int, param: str):
+def get_camera_feature(cam_handle: int, param: str):
     cam_handle = int(cam_handle)
     kydll.KYFG_GetCameraValueType.argtypes = (c_uint, c_char_p)
     kydll.KYFG_GetCameraValueType.restype = c_int32
@@ -264,7 +264,7 @@ def get_camera_prop(cam_handle: int, param: str):
     return None
 
 
-def set_camera_prop(cam_handle, param, value):
+def set_camera_feature(cam_handle, param, value):
     kydll.KYFG_GetCameraValueType.argtypes = (c_uint, c_char_p)
     kydll.KYFG_GetCameraValueType.restype = c_int32
 

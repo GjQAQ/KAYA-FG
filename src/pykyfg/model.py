@@ -3,7 +3,6 @@ import ctypes
 import enum
 import functools
 import threading
-import typing
 
 import cv2
 import numpy as np
@@ -18,19 +17,19 @@ __all__ = [
 ]
 
 
-class GenICamPropMixIn:
+class GenICamFeatureMixIn:
     def __getattr__(self, item):
-        return self.get_prop(item)
+        return self.get_feature(item)
 
     def __setattr__(self, key, value):
         if key in self.__slots__:
             super().__setattr__(key, value)
         else:
-            self.set_prop(key, value)
+            self.set_feature(key, value)
 
     def set(self, **kwargs):
         for k, v in kwargs.items():
-            self.set_prop(k, v)
+            self.set_feature(k, v)
 
 
 class HandleRegistryMixIn:
@@ -49,7 +48,7 @@ class HandleRegistryMixIn:
         return cls.registry()[handle]
 
 
-class FrameGrabber(GenICamPropMixIn, HandleRegistryMixIn):
+class FrameGrabber(GenICamFeatureMixIn, HandleRegistryMixIn):
     __slots__ = ('index', 'handle')
 
     def __init__(self, index: int = 0):
@@ -95,20 +94,20 @@ class FrameGrabber(GenICamPropMixIn, HandleRegistryMixIn):
     def get_info(self):
         return kyapi.get_frame_grabber_info(self.index)
 
-    def get_prop(self, name: str):
-        return kyapi.get_grabber_value(self.handle, name)
+    def get_feature(self, name: str):
+        return kyapi.get_grabber_feature(self.handle, name)
 
-    def set_prop(self, name: str, value):
+    def set_feature(self, name: str, value):
         if isinstance(value, enum.Enum):
             value = value.value
-        return kyapi.set_grabber_value(self.handle, name, value)
+        return kyapi.set_grabber_feature(self.handle, name, value)
 
     @property
     def connected(self):
         return self.handle is not None
 
 
-class Camera(GenICamPropMixIn, HandleRegistryMixIn):
+class Camera(GenICamFeatureMixIn, HandleRegistryMixIn):
     __slots__ = ('fg', 'index', 'handle', 'stream', 'end_event', 'working')
 
     def __init__(self, fg: FrameGrabber, index: int = 0, handle: int = None):
@@ -153,13 +152,13 @@ class Camera(GenICamPropMixIn, HandleRegistryMixIn):
     def get_info(self):
         return kyapi.get_cam_info(self.handle)
 
-    def get_prop(self, name: str):
-        return kyapi.get_camera_prop(self.handle, name)
+    def get_feature(self, name: str):
+        return kyapi.get_camera_feature(self.handle, name)
 
-    def set_prop(self, name: str, value):
+    def set_feature(self, name: str, value):
         if isinstance(value, enum.Enum):
             value = value.value
-        return kyapi.set_camera_prop(self.handle, name, value)
+        return kyapi.set_camera_feature(self.handle, name, value)
 
     def start(self, n_frame: int = 0, use_default_callback: bool = True, block: bool = True):
         if self.working:
@@ -212,14 +211,15 @@ class Camera(GenICamPropMixIn, HandleRegistryMixIn):
         if offset_x is None and offset_y is None and width is None and height is None:
             return self.OffsetX, self.OffsetY, self.Width, self.Height
 
-        if offset_x is not None:
-            self.set_prop('OffsetX', offset_x)
-        if offset_y is not None:
-            self.set_prop('OffsetY', offset_y)
+        # TODO: determine order
         if width is not None:
-            self.set_prop('Width', width)
+            self.set_feature('Width', width)
         if height is not None:
-            self.set_prop('Height', height)
+            self.set_feature('Height', height)
+        if offset_x is not None:
+            self.set_feature('OffsetX', offset_x)
+        if offset_y is not None:
+            self.set_feature('OffsetY', offset_y)
 
     def center_roi(self, width: int, height: int):
         offset_x = (self.WidthMax - width) // 2
@@ -258,8 +258,14 @@ class CameraStream(HandleRegistryMixIn):
 
     def register_callback(self, callback, *args, **kwargs):
         def native_callback(buffer_handle, _):
-            buffer = Buffer(self, buffer_handle)
-            callback(buffer, *args, **kwargs)
+            try:
+                buffer = Buffer(self, buffer_handle)
+                if buffer.ending:
+                    return
+                callback(buffer, *args, **kwargs)
+            except Exception as e:
+                self.cam.finish_acquisition()
+                raise e
 
         self.register_native_callback(native_callback, None)
 
@@ -295,9 +301,15 @@ class Buffer:
         ])
         return f'{self.__class__.__name__}({s})'
 
-    def get_image(self, demosaic: typing.Literal['interpolate', 'downsample', 'none'] = 'interpolate'):
+    def get_image(
+        self,
+        demosaic: str = 'interpolate',
+        dtype: str | np.dtype = np.uint8,
+    ):
+        if not isinstance(dtype, np.dtype):
+            dtype = np.dtype(dtype)
         cam = self.stream.cam
-        image_data = np.zeros(self.size, dtype=np.uint8)
+        image_data = np.zeros(self.size // dtype.itemsize, dtype=dtype)
 
         ctypes.memmove(image_data.ctypes.data, self.base, self.size)
 
@@ -309,7 +321,7 @@ class Buffer:
         elif demosaic == 'downsample':
             image = image.astype(np.float32)
             image = raw2rgb_downsample(image)
-            image = image.astype(np.uint8)
+            image = image.astype(dtype)
         elif demosaic == 'none':
             pass
 
@@ -350,6 +362,16 @@ class Buffer:
     def id(self):
         return kyapi.buffer_get_info(self.handle, kyapi.StreamBufferInfoCmd.ID)
 
+    @property
+    def ending(self):
+        cam = self.stream.cam
+        if not cam.working:
+            return True
+        if self.base is None:
+            cam.finish_acquisition()
+            return True
+        return False
+
 
 def raw2rgb_downsample(image: np.ndarray) -> np.ndarray:
     r = image[0::2, 0::2]
@@ -359,13 +381,5 @@ def raw2rgb_downsample(image: np.ndarray) -> np.ndarray:
 
 
 def multi_frame_default_callback(buffer: Buffer):
-    stream = buffer.stream
-
-    if not stream.cam.working:
-        return
-    if buffer.base is None:
-        stream.cam.finish_acquisition()
-        return
-
     image = buffer.get_image()
-    stream.frames.append(image)
+    buffer.stream.frames.append(image)

@@ -9,10 +9,10 @@ __all__ = [
     'close_frame_grabber',
     'connect_frame_grabber',
     'get_frame_grabber_info',
-    'get_grabber_value',
+    'get_grabber_feature',
     'open_frame_grabber',
     'scan_frame_grabber',
-    'set_grabber_value',
+    'set_grabber_feature',
 ]
 
 INVALID_FGHANDLE = 4294967295  # legacy code
@@ -146,7 +146,7 @@ def get_grabber_value_type(handle, param):
     return grabber_value_type
 
 
-def get_grabber_value(handle, param):
+def get_grabber_feature(handle, param):
     kydll.KYFG_GetGrabberValueType.argtypes = (c_uint, c_char_p)
     kydll.KYFG_GetGrabberValueType.restype = c_int32
     (status, valueType) = get_grabber_value_type(handle, param)
@@ -240,7 +240,7 @@ def kyfg_get_grabber_value_string_copy(handle, param):
     return param_str.decode()
 
 
-def set_grabber_value(handle, param, value):
+def set_grabber_feature(handle, param, value):
     kydll.KYFG_GetGrabberValueType.argtypes = (c_uint, c_char_p)
     kydll.KYFG_GetGrabberValueType.restype = c_int32
 

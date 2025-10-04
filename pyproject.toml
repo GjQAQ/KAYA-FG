@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykyfg"
-version = "0.0.1-dev20250921"
+version = "0.0.1"
 dependencies = [
     "numpy",
     "opencv-python",
@@ -13,6 +13,8 @@ authors = [
     { name = "Jiaqi Guo", email = "gjq@tongji.edu.cn" }
 ]
 description = "A high-level API to use KAYA frame grabber"
+readme = "README.md"
+license = "MIT"
 
 [tool.setuptools.packages.find]
 where = ["src"]
