@@ -1,20 +1,38 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykyfg"
-version = "0.0.1"
+version = "0.1.0"
+description = "A high-level Python API for KAYA frame grabber hardware"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    { name = "Jiaqi Guo", email = "gjq@tongji.edu.cn" }
+]
+keywords = ["kaya", "frame-grabber", "camera", "vision", "coaxpress"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Multimedia :: Graphics :: Capture",
+]
 dependencies = [
     "numpy",
     "opencv-python",
 ]
-authors = [
-    { name = "Jiaqi Guo", email = "gjq@tongji.edu.cn" }
-]
-description = "A high-level API to use KAYA frame grabber"
-readme = "README.md"
-license = "MIT"
+
+[project.urls]
+Repository = "https://github.com/GjQAQ/KAYA-FG"
+"KAYA Vision Point SDK" = "https://kayainstruments.com/software-sdk/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["kyapi*", "pykyfg*"]
